@@ -44,14 +44,6 @@ J_COUPLING_PAIRS = [
     (1, 2, 0.0)   # J_D1D2
 ] 
 
-# J-Couplings (in Hz) matrix. Order must match the nuclei_types: H1, H2, D
-#J_HD = 2.0  # Coupling H-D in Hz
-#J_DD = 0.0  # D-D coupling is zero
-#
-#J = np.array([[0.0,  J_HD, J_HD],
-#              [J_HD, 0.0,  J_DD],
-#              [J_HD, J_DD, 0.0]])
-
 # 3. TRANSITION FILTERING
 cutoff = 0.000    # Intensity cutoff for raw transitions (lower value shows more peaks)
 treshold_hz = 0.5 # Threshold (in Hz) for combining peaks if PLOT_COMBINED_SIGNALS is True
