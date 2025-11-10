@@ -13,6 +13,7 @@ import itertools
 mpl.rcParams['pdf.fonttype'] = 42 # za pdf matplotlib
 plt.rcParams.update({'font.size': 8}) # fontsize za matplotlib
 
+__version__ = "0.1.0" 
 
 # =====================================================================================================================#
 #                         <<< S I M U L A T I O N   P A R A M E T E R S >>>

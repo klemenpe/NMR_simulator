@@ -1,4 +1,4 @@
-# ⚛️ NMR Spin Simulator
+# ⚛️ NMR Spin Simulator (v0.1.0)
 
 A minimal, quantum-mechanical simulator for calculating high-resolution NMR spectra. This project is focused on educational clarity and providing a straightforward, functional implementation of the spin simulation logic.
 
