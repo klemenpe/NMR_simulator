@@ -13,7 +13,7 @@ import itertools
 mpl.rcParams['pdf.fonttype'] = 42 # za pdf matplotlib
 plt.rcParams.update({'font.size': 8}) # fontsize za matplotlib
 
-__version__ = "0.1.0" 
+__version__ = "0.1.1" 
 
 # =====================================================================================================================#
 #                         <<< S I M U L A T I O N   P A R A M E T E R S >>>
@@ -23,9 +23,9 @@ __version__ = "0.1.0"
 spectrometer_1H_MHz = 600  # Spectrometer frequency (in MHz for 1H)
 
 # Plotting settings
-PLOT_NUCLEUS = 'H'             # Nucleus whose spectrum is displayed ('H', 'D', or '13C')
+PLOT_NUCLEUS = 'H'             # Nucleus whose spectrum is displayed ('H', 'D', '13C', '29Si', '19F', '31P', '29Si')
 PLOT_COMBINED_SIGNALS = True   # If True, closely spaced transitions are grouped into one peak. Else False
-tolerance_Hz = 100.0           # Max deviation (in Hz) from Larmor frequency to include a transition in the spectrum
+tolerance_Hz = 200.0            # Max deviation (in Hz) from Larmor frequency to include a transition in the spectrum
 
 # 2. MOLECULAR SETUP (H-H-D system)
 # Define all nuclei in the spin system
@@ -57,6 +57,9 @@ _GAMMA_MAP = {
     'H': 42.577478461,  # Proton
     '13C': 10.7083991,  # Carbon-13
     'D': 6.53569888,    # Deuterium
+    '19F': 40.078,     # Fluorine-19
+    '31P': 17.2349,     # Phosphorus-31
+    '29Si': -8.4650,    # Silicon-29
 }
 
 # ---------------------------------------------------------------------------------------------------------------------#
@@ -414,7 +417,7 @@ if not target_indices:
 target_v_centers = v[target_indices]
 
 # Use a tolerance large enough to catch all coupled signals, but small enough to exclude other nuclei
-tolerance_Hz = 200.0 
+#tolerance_Hz = 300.0 
 
 # Filter raw signals (koncni_signali is [2, N] Hz, Intensity)
 raw_hz = koncni_signali[0]
@@ -428,6 +431,22 @@ for center_freq in target_v_centers:
 filtered_raw_signals = koncni_signali[:, is_target_signal]
 
 print(f"Plotting for {PLOT_NUCLEUS}. Found {filtered_raw_signals.shape[1]} transitions near centers: {target_v_centers}")
+
+# --- NEW: CRITICAL CHECK FOR ZERO SIGNALS ---
+if filtered_raw_signals.shape[1] == 0:
+    print("\n" + "="*80)
+    print(">>> CRITICAL ERROR: NO NMR TRANSITIONS FOUND FOR PLOTTING <<<")
+    print("The simulation successfully calculated the transitions, but the plotting filter found zero signals.")
+    print(f"Target Nucleus: {PLOT_NUCLEUS}")
+    print(f"Calculated Larmor Frequencies (v) for target nucleus: {target_v_centers}")
+    print(f"Current Tolerance: {tolerance_Hz:.1f} Hz")
+    print("\nThis happens when the distance between the transitions and the Larmor frequency exceeds 'tolerance_Hz'.")
+    print("The simplest fixes are:")
+    print("1. INCREASE the 'tolerance_Hz' value (currently set to {tolerance_Hz:.1f} Hz).")
+    print("2. CHANGE the 'ppm_positions' of the target nucleus to a value closer to 0.")
+    print("="*80 + "\n")
+    # Raise an error to halt execution cleanly and prevent the subsequent NaN/Inf plot error
+    raise ValueError(f"No NMR transitions found within the {tolerance_Hz} Hz tolerance band for {PLOT_NUCLEUS}. See console output for guidance.")
 
 
 # ---------------------------------------------------------------------------------------------------------------------#
