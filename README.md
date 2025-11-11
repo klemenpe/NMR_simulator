@@ -1,4 +1,4 @@
-# ⚛️ NMR Spin Simulator (v0.1.0)
+# ⚛️ NMR Spin Simulator (v0.1.1)
 
 A minimal, quantum-mechanical simulator for calculating high-resolution NMR spectra. This project is focused on educational clarity and providing a straightforward, functional implementation of the spin simulation logic.
 
@@ -6,7 +6,7 @@ A minimal, quantum-mechanical simulator for calculating high-resolution NMR spec
 
 * **Customizable Systems:** Easily define chemical shifts and J-couplings for any arbitrary spin system.
 
-* **Spin 1/2 and Spin 1 Support:** Includes full support for both spin-1/2 nuclei ($^1\text{H}, ^{13}\text{C}$) and **spin-1 nuclei** ($^2\text{D}$), which is vital for studying isotopic substitution effects.
+* **Spin 1/2 and Spin 1 Support:** Includes full support for both spin-1/2 nuclei ($^1\text{H}, ^{13}\text{C}$, ^{19}\text{F}$, ^{31}\text{P}$, ^{29}\text{Si}$) and **spin-1 nuclei** ($^2\text{D}$), which is vital for studying isotopic substitution effects.
 
 * **Interactive Plotting:** Generates a Matplotlib spectrum plot with selectable peaks and dynamically scaled PPM axis.
 

@@ -23,7 +23,7 @@ __version__ = "0.1.1"
 spectrometer_1H_MHz = 600  # Spectrometer frequency (in MHz for 1H)
 
 # Plotting settings
-PLOT_NUCLEUS = 'H'             # Nucleus whose spectrum is displayed ('H', 'D', '13C', '29Si', '19F', '31P', '29Si')
+PLOT_NUCLEUS = 'H'             # Nucleus whose spectrum is displayed ('H', 'D', '13C', '19F', '31P', '29Si')
 PLOT_COMBINED_SIGNALS = True   # If True, closely spaced transitions are grouped into one peak. Else False
 tolerance_Hz = 200.0            # Max deviation (in Hz) from Larmor frequency to include a transition in the spectrum
 
