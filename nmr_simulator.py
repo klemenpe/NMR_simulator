@@ -13,7 +13,7 @@ import itertools
 mpl.rcParams['pdf.fonttype'] = 42 # za pdf matplotlib
 plt.rcParams.update({'font.size': 8}) # fontsize za matplotlib
 
-__version__ = "0.1.1" 
+__version__ = "0.1.2" 
 
 # =====================================================================================================================#
 #                         <<< S I M U L A T I O N   P A R A M E T E R S >>>
@@ -23,11 +23,18 @@ __version__ = "0.1.1"
 spectrometer_1H_MHz = 600  # Spectrometer frequency (in MHz for 1H)
 
 # Plotting settings
-PLOT_NUCLEUS = 'H'             # Nucleus whose spectrum is displayed ('H', 'D', '13C', '19F', '31P', '29Si')
+PLOT_NUCLEUS = 'D'             # Nucleus whose spectrum is displayed ('H', 'D', '13C', '19F', '31P', '29Si')
 PLOT_COMBINED_SIGNALS = True   # If True, closely spaced transitions are grouped into one peak. Else False
 tolerance_Hz = 200.0            # Max deviation (in Hz) from Larmor frequency to include a transition in the spectrum
 
-# 2. MOLECULAR SETUP (H-H-D system)
+# 2. NUMERICAL STABILIZATION SETTINGS
+# To prevent numerical artifacts when shifts are near 0 ppm, we apply a temporary uniform shift.
+# This trick stabilizes the Full Hamiltonian calculation without changing the physics of the coupling.
+FREQUENCY_SCALING_MODE = False  # True
+SCALING_SHIFT_PPM = 1  # Artificially shift all signals by 1 ppm for calculation stability. The results will be shifted back by -1 ppm before plotting.
+
+
+# 3. MOLECULAR SETUP (H-H-D system)
 # Define all nuclei in the spin system
 spins = np.array([1/2, 1, 1])
 nuclei_types = ['H', 'D', 'D']
@@ -46,7 +53,7 @@ J_COUPLING_PAIRS = [
 ] 
 
 # 3. TRANSITION FILTERING
-cutoff = 0.000    # Intensity cutoff for raw transitions (lower value shows more peaks)
+cutoff = 0.001    # Intensity cutoff for raw transitions (lower value shows more peaks)
 treshold_hz = 0.5 # Threshold (in Hz) for combining peaks if PLOT_COMBINED_SIGNALS is True
 
 # =====================================================================================================================#
@@ -141,7 +148,8 @@ def construct_transition_matrix(spins):
 
 def ppm_to_hz(ppm_positions, nuclei_types, spectrometer_1H_MHz):
     """
-    Converts chemical shift positions in ppm to frequencies in Hz.
+    Converts chemical shift positions in ppm to frequencies in Hz.and returns the
+    calculated frequencies AND the frequency map for the current spectrometer.
     
     Args:
         ppm_positions (list/array): Chemical shifts in ppm.
@@ -172,7 +180,7 @@ def ppm_to_hz(ppm_positions, nuclei_types, spectrometer_1H_MHz):
         shift_in_Hz = ppm * freq_MHz[nucleus_type]
         v_calculated.append(shift_in_Hz)
 
-    return np.array(v_calculated)
+    return np.array(v_calculated), freq_MHz
 
 
 def construct_j_matrix(spins, J_COUPLING_PAIRS):
@@ -306,8 +314,25 @@ def plot_nmr_spectrum(data_to_plot_T, treshold_hz, cutoff, plot_nucleus, plot_co
 # ---------------------------------------------------------------------------------------------------------------------#
 # --- MAIN PROGRAM EXECUTION ---
 # ---------------------------------------------------------------------------------------------------------------------#
-# Convert PPM positions to Larmor Frequencies (v)
-v = ppm_to_hz(ppm_positions, nuclei_types, spectrometer_1H_MHz)
+#v = ppm_to_hz(ppm_positions, nuclei_types, spectrometer_1H_MHz)
+
+# 1. PREPARE PPM INPUTS and TRACK SHIFTS
+initial_ppm_positions = np.array(ppm_positions)
+shift_ppm_value = SCALING_SHIFT_PPM if FREQUENCY_SCALING_MODE else 0
+scaled_ppm_positions = initial_ppm_positions + shift_ppm_value
+
+print(f"PPM Positions Original: {initial_ppm_positions}")
+print(f"PPM Positions Shifted for Calculation: {scaled_ppm_positions}")
+
+v_un_shifted, freq_MHz_map = ppm_to_hz(initial_ppm_positions, nuclei_types, spectrometer_1H_MHz)
+v, _ = ppm_to_hz(scaled_ppm_positions, nuclei_types, spectrometer_1H_MHz)  # v for Hamiltonian
+
+# Calculate the precise Hz shift applied to each Larmor frequency
+v_shift_hz = v - v_un_shifted 
+print(f"Un-shifted Larmor Frequencies (v_un_shifted, Hz): {v_un_shifted}")
+print(f"Calculated Larmor Frequencies for Hamiltonian (v, Hz): {v}")
+print(f"Hz Shift Applied to Each Nucleus (v_shift_hz): {v_shift_hz}")
+print("-" * 30)
 
 # --- J MATRIX CONSTRUCTION ---
 J = construct_j_matrix(spins, J_COUPLING_PAIRS)
@@ -395,9 +420,7 @@ peaklist = iv[iv[:, 1] >= cutoff]
 
 # Raw signals array: [Hz, Intensity]
 koncni_signali = peaklist.T
-
-print(f"Total transitions found above cutoff {cutoff}: {koncni_signali.shape[1]}")
-print("-" * 30)
+print(f"koncni_signali: {koncni_signali}")
 
 # ---------------------------------------------------------------------------------------------------------------------#
 # --- SIGNAL FILTERING BASED ON PLOT_NUCLEUS ---
@@ -471,8 +494,41 @@ for i in range(len(group_separators) - 1):
     combined_arrays.append(zdruzen)
 
 zdruzeni_signali_filt = np.hstack(combined_arrays).T if combined_arrays else np.empty((0, 2))
-print(f"Filtered, combined signals for {PLOT_NUCLEUS} (Hz, Intensity):\n", zdruzeni_signali_filt)
+
+
+# ---------------------------------------------------------------------------------------------------------------------#
+# --- POST-COMBINATION FREQUENCY SHIFT (Final correction of grouped signals) ---
+# ---------------------------------------------------------------------------------------------------------------------#
+if FREQUENCY_SCALING_MODE and zdruzeni_signali_filt.size > 0:
+    print("\nApplying final shift correction to combined signals: Reverting the nucleus-specific Hz shift.")
+    
+    # Iterate through the combined signals (which are still in the shifted Hz scale)
+    for i in range(zdruzeni_signali_filt.shape[0]):
+        combined_peak_freq_shifted = zdruzeni_signali_filt[i, 0] # Peak in shifted Hz
+
+        # 1. Find the index of the closest Larmor frequency (using SHIFTED values 'v') 
+        #    to determine which nucleus the peak belongs to.
+        closest_nucleus_index = np.argmin(np.abs(combined_peak_freq_shifted - v))
+        
+        # 2. Get the specific Hz shift applied to that nucleus (v_shift_hz)
+        correction_hz = v_shift_hz[closest_nucleus_index]
+        
+        # 3. Apply the correction by subtracting the shift. This moves the peak back 
+        #    to its correct, un-shifted position relative to the original Larmor center.
+        zdruzeni_signali_filt[i, 0] -= correction_hz
+        
+    print("Combined signals successfully reverted to the correct, un-shifted scale.")
+
+    # Custom print message for when scaling was performed
+    final_print_message = f"Filtered, combined and shifted to original scale signals for {PLOT_NUCLEUS} (Hz, Intensity):\n"
+else:
+    # Standard print message when scaling was NOT performed
+    final_print_message = f"Filtered, combined signals for {PLOT_NUCLEUS} (Hz, Intensity):\n"
+
+# Print the final result using the customized message
+print(final_print_message, zdruzeni_signali_filt)
 print("-" * 30)
+
 
 # PLOT GRAPH
 # ---------------------------------------------------------------------------------------------------------------------#
