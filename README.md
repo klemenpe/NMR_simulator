@@ -1,10 +1,12 @@
-# ⚛️ NMR Spin Simulator (v0.1.1)
+# ⚛️ NMR Spin Simulator (v0.1.2)
 
 A minimal, quantum-mechanical simulator for calculating high-resolution NMR spectra. This project is focused on educational clarity and providing a straightforward, functional implementation of the spin simulation logic.
 
 ## 🌟 Key Features
 
 * **Customizable Systems:** Easily define chemical shifts and J-couplings for any arbitrary spin system.
+
+* **Numerical Stability Fix:** Implements an optional frequency scaling mode to eliminate numerical instability and artifacts when Larmor frequencies are close to 0 Hz (0 ppm).
 
 * **Spin 1/2 and Spin 1 Support:** Includes full support for both spin-1/2 nuclei ($^1\text{H}, ^{13}\text{C}, ^{19}\text{F}, ^{31}\text{P}, ^{29}\text{Si}$) and **spin-1 nuclei** ($^2\text{D}$), which is vital for studying isotopic substitution effects.
 
@@ -63,6 +65,8 @@ To adapt the simulation for your own molecule, you only need to modify the param
 | `ppm_positions` | Chemical shift for each nucleus (must match array length). | Set your desired $\delta$ values, e.g., `[3.5, 1.2, 0.9]`. |
 | `J_COUPLING_PAIRS` | Define couplings by index. **The order of indices matters!** | Add or remove tuples: `(Index i, Index j, J_value)`. |
 | `PLOT_NUCLEUS` | Sets the reference scale for the X-axis (e.g., `'H'` for $^1\text{H}$ ppm). | Use `'H'`, `'D'`, or `'13C'`. |
+| `FREQUENCY_SCALING_MODE` | Enables/disables numerical stability fix for Larmor frequencies near 0 Hz. | Set to True or False.|
+| `SCALING_SHIFT_PPM` | The temporary uniform PPM shift applied internally if scaling is enabled. | Keep default (e.g., 1), or change if needed.|
 
 ## 🔐 Licene
 
