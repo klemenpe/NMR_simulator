@@ -23,7 +23,7 @@ __version__ = "0.1.2"
 spectrometer_1H_MHz = 600  # Spectrometer frequency (in MHz for 1H)
 
 # Plotting settings
-PLOT_NUCLEUS = 'D'             # Nucleus whose spectrum is displayed ('H', 'D', '13C', '19F', '31P', '29Si')
+PLOT_NUCLEUS = 'H'             # Nucleus whose spectrum is displayed ('H', 'D', '13C', '19F', '31P', '29Si')
 PLOT_COMBINED_SIGNALS = True   # If True, closely spaced transitions are grouped into one peak. Else False
 tolerance_Hz = 200.0            # Max deviation (in Hz) from Larmor frequency to include a transition in the spectrum
 
@@ -526,8 +526,11 @@ else:
     final_print_message = f"Filtered, combined signals for {PLOT_NUCLEUS} (Hz, Intensity):\n"
 
 # Print the final result using the customized message
-print(final_print_message, zdruzeni_signali_filt)
-print("-" * 30)
+print(final_print_message)
+print(f"{'Frequency (Hz)':<20} {'Intensity':<20}")
+for freq, intensity in zdruzeni_signali_filt:
+    print(f"{freq:<20.10f} {intensity:<20.10f}")
+print("-" * 40)
 
 
 # PLOT GRAPH
