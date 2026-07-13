@@ -9,6 +9,10 @@ import matplotlib.pyplot as plt
 from matplotlib.widgets import Cursor
 import matplotlib as mpl
 import itertools
+from collections import defaultdict
+from functions import convert_pairs_to_j_matrix
+from hamiltonian import construct_sparse_hamiltonian
+from transition_state_solver import calculate_transition_states
 
 mpl.rcParams['pdf.fonttype'] = 42 # za pdf matplotlib
 plt.rcParams.update({'font.size': 8}) # fontsize za matplotlib
@@ -36,20 +40,18 @@ SCALING_SHIFT_PPM = 1  # Artificially shift all signals by 1 ppm for calculation
 
 # 3. MOLECULAR SETUP (H-H-D system)
 # Define all nuclei in the spin system
-spins = np.array([1/2, 1, 1])
-nuclei_types = ['H', 'D', 'D']
+spins = np.array([1/2, 1])
+nuclei_types = ['H', 'D']
 
 # Chemical shifts (in ppm) corresponding to the nuclei defined above
 # H1 at 2.50 ppm, H2 at 1.0 ppm, D at 2.50 ppm
-ppm_positions = [2.50, 2.50, 2.50]
+ppm_positions = [2.50, 2.50]
 
 # --- J-COUPLINGS DEFINITION (Hz) ---
 # Format: (Index i, Index j, J_value)
 # Indices correspond to the order in the 'nuclei_types' list (0=H1, 1=D1, 2=D2)
 J_COUPLING_PAIRS = [
     (0, 1, 2.0),  # J_H1D1
-    (0, 2, 2.0),  # J_H1D2
-    (1, 2, 0.0)   # J_D1D2
 ] 
 
 # 3. TRANSITION FILTERING
@@ -103,6 +105,35 @@ def generate_spin_states(spins):
     states = list(itertools.product(*all_m_values))
     return states
 
+
+def generate_spin_states_by_mz(spins):
+    """
+    Generates spin states and groups them by their total Mz value.
+    
+    Returns:
+        dict: A dictionary where keys are total Mz values, 
+              and values are lists of state tuples.
+    """
+    # 1. Prepare mI values for each spin
+    all_m_values = []
+    for s in spins:
+        if s == 0.5:
+            all_m_values.append([0.5, -0.5])
+        elif s == 1:
+            all_m_values.append([1.0, 0.0, -1.0])
+        else:
+            raise ValueError(f"Unsupported spin value: {s}")
+
+    # 2. Use a defaultdict to automatically group by Mz
+    mz_basis = defaultdict(list)
+    
+    # 3. Generate products and group on the fly
+    for state in itertools.product(*all_m_values):
+        total_mz = sum(state)
+        mz_basis[total_mz].append(state)
+        
+    return mz_basis
+
 #  transition matrix
 def construct_transition_matrix(spins):
     """
@@ -143,6 +174,46 @@ def construct_transition_matrix(spins):
             if diff_count == 1 and allowed_change_magnitude:
                 T[i, j] = 1  # Set upper triangle
     T += T.T  # Add the lower triangle by transposing and adding
+    return T
+
+
+def construct_transition_matrix_mz(mz_groups, states, spins):
+    """
+    Constructs the transition matrix by only checking pairs of states 
+    that could possibly be connected (same Mz or adjacent Mz).
+    """
+    # Note: For NMR, observable transitions (Ix) connect Mz and Mz +/- 1
+    # For now, let's keep it simple and just build the connections
+    # between the states you already have.
+    
+    num_states = len(states)
+    T = np.zeros((num_states, num_states), dtype=int)
+
+    # We only iterate through the states we know exist
+    # This prevents checking millions of irrelevant combinations
+    for i in range(num_states):
+        for j in range(i + 1, num_states):
+            state1 = states[i]
+            state2 = states[j]
+            
+            # The Selection Rule:
+            # 1. Only one nucleus changes
+            # 2. That change is +/- 1.0
+            diff_count = 0
+            allowed_change_magnitude = True
+            
+            for k in range(len(spins)):
+                diff = state1[k] - state2[k]
+                if diff != 0:
+                    diff_count += 1
+                    if not np.isclose(abs(diff), 1.0):
+                        allowed_change_magnitude = False
+                        break
+            
+            if diff_count == 1 and allowed_change_magnitude:
+                T[i, j] = 1
+                T[j, i] = 1  # Symmetry
+                
     return T
 
 
@@ -335,92 +406,42 @@ print(f"Hz Shift Applied to Each Nucleus (v_shift_hz): {v_shift_hz}")
 print("-" * 30)
 
 # --- J MATRIX CONSTRUCTION ---
-J = construct_j_matrix(spins, J_COUPLING_PAIRS)
+J_matrix = convert_pairs_to_j_matrix(len(spins), J_COUPLING_PAIRS, verbose=True)
 
-# Define Pauli matrices (including spin-1)
-sigma_x_half = np.array([[0, 1/2], [1/2, 0]])
-sigma_y_half = np.array([[0, -1j/2], [1j/2, 0]])
-sigma_z_half = np.array([[1/2, 0], [0, -1/2]])
-unit_half = np.array([[1, 0], [0, 1]])
-
-# Spin 1 matrices
-sigma_x_1 = np.array([[0, np.sqrt(2)/2, 0], [np.sqrt(2)/2, 0, np.sqrt(2)/2], [0, np.sqrt(2)/2, 0]])
-sigma_y_1 = np.array([[0, (-1j*np.sqrt(2))/2, 0], [(1j*np.sqrt(2))/2, 0, (-1j*np.sqrt(2))/2], [0, (1j*np.sqrt(2))/2, 0]])
-sigma_z_1 = np.array([[1, 0, 0], [0, 0, 0], [0, 0, -1]])
-unit_1 = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
-
-# DEFINE OPERATORS
+# Construct hamiltonian
 # ----------------------------------------------------------#
-nspins = len(v)  # number of spins
-nspins_half = np.count_nonzero(spins == 1/2)  # count number of 1/2 spins
-nspins_one = np.count_nonzero(spins == 1)  # count number of 1 spins
 
-# construct spin operators
+H = construct_sparse_hamiltonian(spins, v, J_matrix)
+print(f"Sparse Hamiltonian constructed. Shape: {H.shape}")
 
-size_states = 2**nspins_half * 3**nspins_one  # size of matrix for all possible states
-
-L = np.empty((3, nspins, size_states, size_states), dtype=np.complex128)  # preaalocate space
-
-for n in range(nspins):
-    Lx_current = 1
-    Ly_current = 1
-    Lz_current = 1
-    for k in range(nspins):
-        if k == n:
-            if spins[n] == 1/2:
-                Lx_current = np.kron(Lx_current, sigma_x_half)
-                Ly_current = np.kron(Ly_current, sigma_y_half)
-                Lz_current = np.kron(Lz_current, sigma_z_half)
-            elif spins[n] == 1:
-                Lx_current = np.kron(Lx_current, sigma_x_1)
-                Ly_current = np.kron(Ly_current, sigma_y_1)
-                Lz_current = np.kron(Lz_current, sigma_z_1)
-        else:
-            if spins[k] == 1/2:
-                Lx_current = np.kron(Lx_current, unit_half)
-                Ly_current = np.kron(Ly_current, unit_half)
-                Lz_current = np.kron(Lz_current, unit_half)
-            elif spins[k] == 1:
-                Lx_current = np.kron(Lx_current, unit_1)
-                Ly_current = np.kron(Ly_current, unit_1)
-                Lz_current = np.kron(Lz_current, unit_1)
-
-    L[0, n] = Lx_current
-    L[1, n] = Ly_current
-    L[2, n] = Lz_current
-
-# constructing operator for spin-spin coupling interactions
-
-L_T = L.transpose(1, 0, 2, 3)
-Lproduct = np.tensordot(L_T, L, axes=((1, 3), (0, 2))).swapaxes(1, 2)
-
-# calculate hamiltonian first part
-Lz = L[2]  # spin-spin coupling interactions in z axis Lz
-H = np.tensordot(v, Lz, axes=1)
-
-# calculate hamiltonian second part and combine with first part
-scalars = 0.5 * J
-H += np.tensordot(scalars, Lproduct, axes=2)
+# Convert to dense if you want to compare with original script for verification only
+#H_dense = H.toarray()
 
 # --- AUTOMATIC TRANSITION MATRIX GENERATION FROM FUNCTION---
-T = construct_transition_matrix(spins)
 
-# Diagonalize and find transition intensities and energies
-E, V = np.linalg.eigh(H)
-V = V.real
-I = np.square(V.T.dot(T.dot(V)))
-I_upper = np.triu(I)  # symmetry makes it possible to use only one half of the matrix for faster calculation
-E_matrix = np.abs(E[:, np.newaxis] - E)
-E_upper = np.triu(E_matrix)
-combo = np.stack([E_upper, I_upper])
-iv = combo.reshape(2, I.shape[0] ** 2).T
+# 1. Generate the grouped states
+mz_basis = generate_spin_states_by_mz(spins)
 
-# Filter raw peaks by intensity
-peaklist = iv[iv[:, 1] >= cutoff]
+# 2. Flatten the dictionary into a simple list of states
+all_states = []
+for mz in sorted(mz_basis.keys(), reverse=True):
+    all_states.extend(mz_basis[mz])
 
-# Raw signals array: [Hz, Intensity]
-koncni_signali = peaklist.T
-print(f"koncni_signali: {koncni_signali}")
+# new construct_transition_matrix_mz constructed matrix
+T = construct_transition_matrix_mz(mz_basis, all_states, spins)
+
+# 3. Solve transitions using the Mz Block Diagonalization engine
+koncni_signali = calculate_transition_states(H, spins, cutoff=cutoff)
+
+print("Calculated Signals (Frequency Hz, Intensity):")
+# Show the first 20 transitions as a preview
+num_peaks = koncni_signali.shape[1]
+for idx in range(min(20, num_peaks)):
+    freq = koncni_signali[0, idx]
+    intensity = koncni_signali[1, idx]
+    print(f"Transition {idx+1:02d}: Freq = {freq:8.3f} Hz | Intensity = {intensity:6.4f}")
+if num_peaks > 20:
+    print(f"... and {num_peaks - 20} more transitions.")
 
 # ---------------------------------------------------------------------------------------------------------------------#
 # --- SIGNAL FILTERING BASED ON PLOT_NUCLEUS ---
@@ -531,6 +552,12 @@ print(f"{'Frequency (Hz)':<20} {'Intensity':<20}")
 for freq, intensity in zdruzeni_signali_filt:
     print(f"{freq:<20.10f} {intensity:<20.10f}")
 print("-" * 40)
+
+# testi
+tt = generate_spin_states(spins)
+tt2 = generate_spin_states_by_mz(spins)
+
+tm = construct_transition_matrix(spins)
 
 
 # PLOT GRAPH
