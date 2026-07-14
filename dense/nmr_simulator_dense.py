@@ -9,11 +9,15 @@ import matplotlib.pyplot as plt
 from matplotlib.widgets import Cursor
 import matplotlib as mpl
 import itertools
+import time
 
 mpl.rcParams['pdf.fonttype'] = 42 # za pdf matplotlib
 plt.rcParams.update({'font.size': 8}) # fontsize za matplotlib
 
-__version__ = "1.0.0" 
+__version__ = "1.1.0" 
+
+# start program execution time
+start_time = time.time()
 
 # =====================================================================================================================#
 #                         <<< S I M U L A T I O N   P A R A M E T E R S >>>
@@ -532,6 +536,13 @@ for freq, intensity in zdruzeni_signali_filt:
     print(f"{freq:<20.10f} {intensity:<20.10f}")
 print("-" * 40)
 
+
+# end execution time
+# ---------------------------------------------------------------------------------------------------------------------#
+end_time = time.time()    # 3. Record the end time
+elapsed_time = (end_time - start_time)/60
+
+print(f"\nExecution Time: {elapsed_time:.4f} minutes")
 
 # PLOT GRAPH
 # ---------------------------------------------------------------------------------------------------------------------#

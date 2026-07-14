@@ -2,21 +2,22 @@ import numpy as np
 from scipy import sparse
 import itertools
 from collections import defaultdict
-from spin_operators_registry import get_spin_operators, SPIN_CONFIG
+from spin_database import get_spin_operators, SPIN_CONFIG
+
 
 def generate_spin_states(spins):
     """
     Generates all possible combinations of mI values for the spin system.
     Dynamically generates the correct spin projection values using the formula: s, s-1, ..., -s.
-    Validates that each spin is supported in the operator registry.
+    Validates that each spin is supported in the operator database.
     """
     all_m_values = []
     for s in spins:
-        # Safety Check: ensure the spin is defined in our registry
+        # Safety Check: ensure the spin is defined in our database
         if s not in SPIN_CONFIG:
             raise ValueError(
                 f"Unsupported spin value: {s}. To use this spin, please add its matrices "
-                f"(x, y, z, unit) to SPIN_CONFIG in spin_registry.py first."
+                f"(x, y, z, unit) to SPIN_CONFIG in spin_database.py first."
             )
         
         # Dynamically generate the descending list of mI projections (e.g. 1.5 -> [1.5, 0.5, -0.5, -1.5])

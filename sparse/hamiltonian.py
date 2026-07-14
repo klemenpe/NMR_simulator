@@ -1,6 +1,6 @@
 import numpy as np
 from scipy import sparse
-from spin_operators_registry import get_spin_operators
+from spin_database import get_spin_operators
 
 
 def construct_sparse_hamiltonian(spins, v, J_matrix):
@@ -46,3 +46,4 @@ def construct_sparse_hamiltonian(spins, v, J_matrix):
                     H += J_matrix[i, j] * (op_i_full @ op_j_full)
                     
     return H.tocsr()
+    
