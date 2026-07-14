@@ -1,72 +1,64 @@
-# ⚛️ NMR Spin Simulator (v0.1.2)
+# ⚛️ NMR Spin Simulator (v1.1.0)
 
-A minimal, quantum-mechanical simulator for calculating high-resolution NMR spectra. This project is focused on educational clarity and providing a straightforward, functional implementation of the spin simulation logic.
+Welcome to the High-Resolution NMR Spin Simulator. This repository contains two completely independent implementations of a quantum-mechanical NMR spectrum solver, tailored for different use cases.
 
-## 🌟 Key Features
+## 📂 Repository Structure
 
-* **Customizable Systems:** Easily define chemical shifts and J-couplings for any arbitrary spin system.
+The code is organized into two distinct directories based on performance requirements and educational focus:
 
-* **Numerical Stability Fix:** Implements an optional frequency scaling mode to eliminate numerical instability and artifacts when Larmor frequencies are close to 0 Hz (0 ppm).
+```
+nmr-spin-simulator/
+│
+├── README.md                  
+├── LICENSE.md                    # Project License
+│
+├── dense/                        # 🟢 THE EDUCATIONAL VERSION
+│   ├── README.md                 # Setup and usage for the dense code
+│   └── nmr_simulator_dense.py    # Single-file, classical Kronecker-based code
+│
+└── sparse/                       # 🔵 THE HIGH-PERFORMANCE VERSION
+    ├── README.md                 # Detailed documentation on block-diagonalization
+    ├── nmr_simulator_sparse.py   # Main runner & input configuration file
+    ├── hamiltonian.py            # Sparse matrix construction engine
+    ├── transition_state_solver.py  # Block-diagonal eigensolver & transition engine
+    ├── spin_database.py          # Central database for spins and operators
+    └── functions.py              # Helper/utility functions (PPM to Hz conversion)
+```
 
-* **Spin 1/2 and Spin 1 Support:** Includes full support for both spin-1/2 nuclei ($^1\text{H}, ^{13}\text{C}, ^{19}\text{F}, ^{31}\text{P}, ^{29}\text{Si}$) and **spin-1 nuclei** ($^2\text{D}$), which is vital for studying isotopic substitution effects.
+## ⚡ Comparison: Dense vs. Sparse
 
-* **Interactive Plotting:** Generates a Matplotlib spectrum plot with selectable peaks and dynamically scaled PPM axis.
+| Feature             | 🟢 Dense Simulator                   | 🔵 Sparse Simulator                                |
+|---------------------|--------------------------------------|-----------------------------------------------------|
+| Primary Focus       | Educational clarity & simplicity     | calability & raw performance                        |
+| Architecture        | Single-file script                   | Clean, modular library                              |
+| Max Practical Spins | $N \le 6$ spins                      | $N = 15+$ spins                                     |
+| Hamiltonian Storage | Dense NumPy Arrays                   | CSR Sparse SciPy Matrices                           |
+| Diagonalization     | Solves $2^N \times 2^N$ matrix       | Solves small independent $M_z$ blocks               |
+| Best For            | Learning basic NMR quantum mechanics | Large systems, metabolite databases, stress-testing |
 
-* **Clear Structure:** All core simulation settings are conveniently located in a single parameter block at the top of the Python file.
-
-## 🚀 Setup & Run
+## 🚀 Getting Started
 
 ### Prerequisites
 
-You need Python and the following scientific libraries installed:
+Both versions require Python 3 and standard scientific libraries:
 ```bash
-pip install numpy matplotlib
+pip install numpy scipy matplotlib
 ```
 
-### Execution
+### Quick Start
 
-1. Download the `nmr_simulator.py` file to your local computer.
+1. For an easy, visual introduction to a simple coupled system: Navigate to the dense/ folder and run:
 
-2. Run the script directly from your terminal (or via any IDE/editor that supports Python execution):
 ```bash
-python nmr_simulator.py
+python nmr_simulator_dense.py
 ```
-The script will calculate the J-coupling matrix, solve the Hamiltonian, and display the final spectrum plot and the list of calculated transitions in your console.
 
-## ⚛️ The Default Example System
+2. For simulating massive systems with modular files: Navigate to the sparse/ folder and run:
 
-The `nmr_simulator.py` file is pre-configured to simulate an H-D-D system, often found in $\text{CHD}_2$ isotopomers (like the residual solvent signal in DMSO-d5).
+```bash
+python nmr_simulator_sparse.py
+```
 
-The central proton ($\text{H}$, $I=1/2$) is coupled to two equivalent deuterons ($\text{D}$, $I=1$). This coupling is expected to produce a quintet (five equally spaced lines) for the proton signal, which is predicted by the $2nI+1$ rule: $2 \times 2 \times 1 + 1 = 5$.
-
-| Nucleus | Spin | Type | Shift (ppm) |
- | ----- | ----- | ----- | ----- |
-| **0** | $1/2$ | $^1\text{H}$ | 2.50 |
-| **1** | $1/2$ | $^2\text{D}$ | 2.50 |
-| **2** | $1$ | $^2\text{D}$ | 2.50 |
-
-**Couplings:**
-
-Couplings:
-
-$J_{0,1}$ (H-D coupling) = $2.0\text{ Hz}$
-
-$J_{0,2}$ (H-D coupling) = $2.0\text{ Hz}$
-
-$J_{1,2}$ (D-D coupling) = $0.0\text{ Hz}$
-
-## ⚙️ Customizing the Simulation
-To adapt the simulation for your own molecule, you only need to modify the parameters at the very beginning of the nmr_simulator.py file under the <<< S I M U L A T I O N  P A R A M E T E R S >>> block.
-
-| Parameter | Purpose | How to Modify |
- | ----- | ----- | ----- |
-| `spins` | Quantum number for each nucleus in the system. | Change the array, e.g., `np.array([1/2, 1/2, 1/2])`. |
-| `nuclei_types` | Corresponding type (used for $\gamma$ ratio and plotting scale). | Ensure this matches `spins`, e.g., `['H', 'H', 'H']`. |
-| `ppm_positions` | Chemical shift for each nucleus (must match array length). | Set your desired $\delta$ values, e.g., `[3.5, 1.2, 0.9]`. |
-| `J_COUPLING_PAIRS` | Define couplings by index. **The order of indices matters!** | Add or remove tuples: `(Index i, Index j, J_value)`. |
-| `PLOT_NUCLEUS` | Sets the reference scale for the X-axis (e.g., `'H'` for $^1\text{H}$ ppm). | Use `'H'`, `'D'`, or `'13C'`. |
-| `FREQUENCY_SCALING_MODE` | Enables/disables numerical stability fix for Larmor frequencies near 0 Hz. | Set to True or False.|
-| `SCALING_SHIFT_PPM` | The temporary uniform PPM shift applied internally if scaling is enabled. | Keep default (e.g., 1), or change if needed.|
 
 ## 🔐 Licene
 
