@@ -1,7 +1,5 @@
 import numpy as np
 from spin_database import _GAMMA_MAP
-import itertools
-from collections import defaultdict
 from matplotlib.widgets import Cursor
 import matplotlib.pyplot as plt
 
@@ -53,35 +51,6 @@ def ppm_to_hz(ppm_positions, nuclei_types, spectrometer_1H_MHz):
         v_calculated.append(shift_in_Hz)
 
     return np.array(v_calculated), freq_MHz
-
-
-def generate_spin_states_by_mz(spins):
-    """
-    Generates spin states and groups them by their total Mz value.
-    
-    Returns:
-        dict: A dictionary where keys are total Mz values, 
-              and values are lists of state tuples.
-    """
-    # 1. Prepare mI values for each spin
-    all_m_values = []
-    for s in spins:
-        if s == 0.5:
-            all_m_values.append([0.5, -0.5])
-        elif s == 1:
-            all_m_values.append([1.0, 0.0, -1.0])
-        else:
-            raise ValueError(f"Unsupported spin value: {s}")
-
-    # 2. Use a defaultdict to automatically group by Mz
-    mz_basis = defaultdict(list)
-    
-    # 3. Generate products and group on the fly
-    for state in itertools.product(*all_m_values):
-        total_mz = sum(state)
-        mz_basis[total_mz].append(state)
-        
-    return mz_basis
 
 
 def convert_pairs_to_j_matrix(nspins, coupling_pairs, verbose=True):

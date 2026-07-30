@@ -1,63 +1,60 @@
-# ⚛️ NMR Spin Simulator (v1.1.0)
+# ⚛️ NMR Spin Simulator (v1.2.0)
 
-Welcome to the High-Resolution NMR Spin Simulator. This repository contains two completely independent implementations of a quantum-mechanical NMR spectrum solver, tailored for different use cases.
+Welcome to the High-Resolution NMR Spin Simulator. This repository contains two completely independent implementations of a quantum-mechanical NMR spectrum solver, engineered for both educational clarity and extreme computational performance.
 
-## 📂 Repository Structure
+## 📂 Project Overview
 
-The code is organized into two distinct directories based on performance requirements and educational focus:
+The project is split into two independent modules based on performance and design philosophy:
 
-```
-nmr-spin-simulator/
-│
-├── README.md                  
-├── LICENSE.md                    # Project License
-│
-├── dense/                        # 🟢 THE EDUCATIONAL VERSION
-│   ├── README.md                 # Setup and usage for the dense code
-│   └── nmr_simulator_dense.py    # Single-file, classical Kronecker-based code
-│
-└── sparse/                       # 🔵 THE HIGH-PERFORMANCE VERSION
-    ├── README.md                 # Detailed documentation on block-diagonalization
-    ├── nmr_simulator_sparse.py   # Main runner & input configuration file
-    ├── hamiltonian.py            # Sparse matrix construction engine
-    ├── transition_state_solver.py  # Block-diagonal eigensolver & transition engine
-    ├── spin_database.py          # Central database for spins and operators
-    └── functions.py              # Helper/utility functions (PPM to Hz conversion)
-```
+* **`dense/` — The Educational Engine**  
+  A single-file, classical Kronecker-product script designed for learning the fundamentals of NMR quantum mechanics and checking theory.
+* **`sparse/` — The High-Performance Engine**  
+  A modular, heavily optimized solver leveraging block-diagonalization ($M_z$ symmetry sectors) capable of handling **20+ spins** comfortably.
 
-## ⚡ Comparison: Dense vs. Sparse
+---
 
-| Feature             | 🟢 Dense Simulator                   | 🔵 Sparse Simulator                                |
-|---------------------|--------------------------------------|-----------------------------------------------------|
-| Primary Focus       | Educational clarity & simplicity     | calability & raw performance                        |
-| Architecture        | Single-file script                   | Clean, modular library                              |
-| Max Practical Spins | $N \le 6$ spins                      | $N = 15+$ spins                                     |
-| Hamiltonian Storage | Dense NumPy Arrays                   | CSR Sparse SciPy Matrices                           |
-| Diagonalization     | Solves $2^N \times 2^N$ matrix       | Solves small independent $M_z$ blocks               |
-| Best For            | Learning basic NMR quantum mechanics | Large systems, metabolite databases, stress-testing |
+## ⚡ Core Comparison
+
+| Feature                 | 🟢 Dense Simulator                   | 🔵 Sparse Simulator                                |
+|-------------------------|--------------------------------------|-----------------------------------------------------|
+| **Primary Focus**       | Educational clarity & simplicity     | calability & raw performance                        |
+| **Architecture**        | Single-file script                   | Clean, modular library                              |
+| **Capacity**            | $N \le 6$ spins                      | Comfortably scales to $N \ge 20$ spins              |
+| **Hamiltonian Storage** | Dense NumPy Arrays                   | CSR Sparse SciPy Matrices                           |
+| **Under the Hood**      | Global dense NumPy matrices          | $M_z$ block-diagonal decomposition                  |
+| **Best For**            | Learning NMR quantum math & testing  | Large spin systems & complex spin networks          |
 
 ## 🚀 Getting Started
 
 ### Prerequisites
 
-Both versions require Python 3 and standard scientific libraries:
+Both versions require Python 3 along with standard scientific computation libraries:
 ```bash
-pip install numpy scipy matplotlib
+pip install numpy scipy matplotlib pytest
 ```
 
-### Quick Start
+### Running the Simulations
 
-1. For an easy, visual introduction to a simple coupled system: Navigate to the dense/ folder and run:
-
-```bash
-python nmr_simulator_dense.py
-```
-
-2. For simulating massive systems with modular files: Navigate to the sparse/ folder and run:
+1. **To run the Educational (Dense) version:** Navigate into the dense folder and execute the script:
 
 ```bash
-python nmr_simulator_sparse.py
+python dense/nmr_simulator_dense.py
 ```
+
+2. **To run the High-Performance (Sparse) version:** Navigate into the sparse folder and execute:
+
+```bash
+python sparse/nmr_simulator_sparse.py
+```
+
+2. **Running Quality Assurance Tests:** The project includes a robust test suite. You can execute all unit and regression tests from the root directory using pytest:
+
+```bash
+pytest -v
+```
+
+## 📖 Detailed Documentation
+For deeper dives into the physics, configuration parameters, and specific usage of each implementation, please check the dedicated README files located within their respective folders
 
 
 ## 🔐 Licene

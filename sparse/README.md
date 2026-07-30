@@ -1,69 +1,65 @@
-# 🔵 High-Performance NMR Spin Simulator (Sparse Engine)
+# 🔵 High-Performance NMR Spin Simulator (Sparse Engine) — v1.2.0
 
-This directory houses the production-ready, high-performance simulator designed to solve massive spin systems containing up to $15+$ active spins.
+This directory houses the high-performance, production-ready simulator engineered to solve massive spin systems containing **20+ active spins** with extreme speed and memory efficiency.
 
 ## ⚡ Architectural Optimizations
 
-To overcome the exponential memory scaling of quantum mechanics ($2^N$), this engine implements two critical software optimizations:
+To overcome the exponential $2^N$ (or $(2I+1)^N$) matrix growth of quantum mechanics, this engine implements two critical optimizations:
 
-### 1. Compressed Sparse Storage (SciPy CSR)
+### 1. Compressed Sparse Row Storage (SciPy CSR)
+Instead of allocating dense matrices filled with zeros, the Hamiltonian is constructed entirely using `scipy.sparse` matrix operators. This keeps the memory footprint lightweight, scaling with non-zero couplings rather than matrix area.
 
-Instead of storing millions of useless zero elements in RAM, the Hamiltonian is constructed using ```scipy.sparse``` matrices. This reduces the memory footprint from gigabytes to kilobytes.
+### 2. $M_z$ Symmetry Block-Diagonalization
+Because the total magnetic projection operator $F_z$ commutes with the scalar Hamiltonian ($[H, F_z] = 0$), quantum states belonging to different $M_z$ sectors cannot couple.
 
-### 2. $M_z$ Block-Diagonalization
+Instead of diagonalizing one giant matrix of size $D \times D$ the program:
+1. **Groups** quantum basis states into independent $M_z$ subspace blocks.
+2. **Extracts and solves** small independent block matrices in parallel using targeted eigensolvers.
+3. **Applies Selection Rules** only between adjacent $M_z$ blocks ($\Delta M_z = \pm 1$).
 
-Because the total magnetic projection $M_z$ commutes with the Hamiltonian ($[H, F_z] = 0$), states in different $M_z$ sectors cannot couple.
+This reduces the diagonalization time from an intractable $O(D^3)$ to a series of lightweight $O(d^3)$ solves, turning calculations that would take days into milliseconds!
 
-Instead of diagonalizing one massive matrix of size $D \times D$, the solver:
+---
 
- 1. goups your quantum states into independent $M_z$ subspaces.
+## 🔬 Rigorous Transition Mechanics ($F_x$ Operator)
 
- 2. Extracts and solves tiny block matrices individually.
+The sparse engine implements the fully rigorous physical transition operator $F_x = \sum_i I_{x,i}$ for calculating peak line intensities:
 
- 3. Calculates transitions only between adjacent blocks ($\Delta M_z = \pm 1.0$).
+* **Physical State Mixing:** When strong J-coupling mixes quantum states, transition intensities are evaluated through explicit operator sandwich products $\langle \psi_b | F_x | \psi_a \rangle$.
 
-This reduces the diagonalization complexity from $O(D^3)$ to a series of tiny $O(d^3)$ solves, speeding up calculations from hours to milliseconds!
+* **Heteronuclear Scaling:** Transition amplitudes automatically incorporate physical spin projection weights ($\frac{1}{2}$ for spin-1/2 vs. $\frac{\sqrt{2}}{2}$ for spin-1), yielding exact quantum-mechanical relative line intensities.
 
-## ⚛️ Default Verification System: $\text{CHD}_2$
-
-By default, main_experiment.py is configured with the exact same test system as the dense educational version: a residual proton coupled to two equivalent deuterium nuclei ($\text{CHD}_2$ isotopomer of DMSO).
-
-Spins: $[1/2, 1, 1]$
-
-Expected Result: A classic $1:2:3:2:1$ quintet splitting pattern on the Proton ($\text{H}$) channel, governed by the $2nI + 1$ quantum rule:
-
-
-$$\text{Lines} = 2 \times (2) \times (1) + 1 = 5$$
-
-Using this identical system allows you to easily cross-verify the accuracy of both engines.
-
-## 🔬 Note on Microscopic Numerical Differences
-When simulating mixed-spin systems (such as $H-D$ couplings), you will observe differences in the calculated peak intensities in the $3\text{rd}$ decimal place. This is a feature, not a bug! The Dense engine utilizes a simplified topological transition matrix (treating all allowed flips as having a binary weight of $1.0$), while the Sparse engine implements the mathematically rigorous, physical $F_x = \sum I_{x,i}$ operator. Because J-coupling mixes states, the physical spin-projection weights ($\frac{1}{2}$ for spin-$1/2$ vs $\frac{\sqrt{2}}{2}$ for spin-$1$) correctly scale the transition elements, yielding a more physically authentic spectrum.
+---
 
 ## 📂 Modular File Architecture
 
-Unlike the dense version, this engine is fully modular:
+The solver is structured into dedicated, decoupled modules:
 
-- nmr_simulator_sparse.py: Your main program file. This is where you configure your chemical shifts, couplings, and run the simulation.
+* **`nmr_simulator_sparse.py`** — Main entry point. Configure your chemical shifts, coupling constants ($J$), spectrometer frequencies, and output preferences here.
+* **`transition_state_solver.py`** — Block-diagonalization solver that sorts basis states by $M_z$, diagonalizes individual subspaces, and calculates allowed transition frequencies and intensities.
+* **`spin_database.py`** — Central repository containing gyromagnetic ratios ($\gamma$)
+* **`functions.py`** — Utility routines for unit conversions (PPM to Hz), matrix formatting, and plotting.
 
-- hamiltonian.py: The sparse operator compiler that constructs your Zeeman and J-coupling terms.
-
-- transition_state_solver.py: The block-diagonal solver that slices the Hamiltonian, diagonalizes the blocks, and applies quantum selection rules to find spectrum peaks.
-
-- spin_database.py: The unified database of physical gyromagnetic ratios ($\gamma$) and quantum projection matrices ($x, y, z,$ and Identity) for spin-$1/2$ and spin-$1$ systems.
-
-- functions.py: Centralized helper tools (PPM to Hz scaling, pairing matrix generation).
+---
 
 
-## 🚀 Running the Simulator
+## 🚀 Running the Simulator & Testing
 
-Configure your molecules (such as Alanine, Proline, or ATP) inside main_experiment.py under the configuration block, then execute:
+Configure your target system inside `nmr_simulator_sparse.py` and execute:
 
 ```bash
 python nmr_simulator_sparse.py
 ```
 
+### Verification & Regression Tests
+
+To run validation tests verifying this solver:
 
 
+```bash
+pytest -v
+```
 
+## 🔐 Licene
 
+NMR Simulator is licensed under the MIT License.

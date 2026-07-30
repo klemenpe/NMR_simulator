@@ -14,7 +14,7 @@ import time
 mpl.rcParams['pdf.fonttype'] = 42 # za pdf matplotlib
 plt.rcParams.update({'font.size': 8}) # fontsize za matplotlib
 
-__version__ = "1.1.0" 
+__version__ = "1.2.0" 
 
 # start program execution time
 start_time = time.time()

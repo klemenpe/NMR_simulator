@@ -8,14 +8,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 import functions
 import matplotlib as mpl
-from hamiltonian import construct_sparse_hamiltonian
-from transition_state_solver import calculate_transition_states
+from transition_state_solver import calculate_transition_states_direct_blocks
 import time
 
 mpl.rcParams['pdf.fonttype'] = 42 # za pdf matplotlib
 plt.rcParams.update({'font.size': 8}) # fontsize za matplotlib
 
-__version__ = "1.1.0" 
+__version__ = "1.2.0" 
 
 # start program execution time
 start_time = time.time()
@@ -59,7 +58,7 @@ J_COUPLING_PAIRS = [
 
 # 3. TRANSITION FILTERING
 cutoff = 0.001    # Intensity cutoff for raw transitions (lower value shows more peaks)
-treshold_hz = 0.5  # Threshold (in Hz) for combining peaks if PLOT_COMBINED_SIGNALS is True
+threshold_hz = 0.5  # Threshold (in Hz) for combining peaks if PLOT_COMBINED_SIGNALS is True
 
 # =====================================================================================================================#
 
@@ -88,41 +87,30 @@ print("-" * 30)
 
 # --- J MATRIX CONSTRUCTION ---
 # ----------------------------------------------------------#
+
+# 1. Build J matrix (Symmetric N x N matrix)
 J_matrix = functions.convert_pairs_to_j_matrix(len(spins), J_COUPLING_PAIRS, verbose=True)
 
-# --- CONSTRUCT HAMILTONIAN ---
+
+# --- MAIN QUNATUM CALCULATINS (Hamiltonian, transition matrix, transition calculation) ---
 # ----------------------------------------------------------#
+# 2. Directly solve transitions block-by-block (no global matrix is built) and calculate final signals
+spectra_peaks = calculate_transition_states_direct_blocks(spins, v, J_matrix, cutoff=cutoff)
 
-H = construct_sparse_hamiltonian(spins, v, J_matrix)
-print(f"Sparse Hamiltonian constructed. Shape: {H.shape}")
+# 3. Print results preview
+print("\nCalculated Signals (Frequency Hz, Intensity):")
+num_peaks = spectra_peaks.shape[1]
 
-# Convert to dense if you want to compare with original script for verification only
-#H_dense = H.toarray()
-
-# --- AUTOMATIC TRANSITION MATRIX GENERATION ---
-# ----------------------------------------------------------#
-# 1. Generate the grouped states
-mz_basis = functions.generate_spin_states_by_mz(spins)
-
-# 2. Flatten the dictionary into a simple list of states
-all_states = []
-for mz in sorted(mz_basis.keys(), reverse=True):
-    all_states.extend(mz_basis[mz])
-
-# new construct_transition_matrix_mz constructed matrix
-T = functions.construct_transition_matrix_mz(mz_basis, all_states, spins)
-
-#--- USE TRANSITION STATE SOLVER FOR FINAL TRANSITION CALCULATION ---
-# ----------------------------------------------------------#
-# 3. Solve transitions using the Mz Block Diagonalization engine
-koncni_signali = calculate_transition_states(H, spins, cutoff=cutoff)
-
-print("Calculated Signals (Frequency Hz, Intensity):")
-num_peaks = koncni_signali.shape[1]
-for idx in range(num_peaks):
-    freq = koncni_signali[0, idx]
-    intensity = koncni_signali[1, idx]
-    print(f"Transition {idx+1:02d}: Freq = {freq:8.3f} Hz | Intensity = {intensity:6.4f}")
+# Sort transitions by frequency for clean, professional console outputs
+sorted_indices = np.argsort(spectra_peaks[0])
+sorted_signals = spectra_peaks[:, sorted_indices]
+for idx in range(min(25, num_peaks)):
+    freq = sorted_signals[0, idx]
+    intensity = sorted_signals[1, idx]
+    print(f"Transition {idx+1:02d}: Freq = {freq:8.4f} Hz | Intensity = {intensity:6.4f}")
+    
+if num_peaks > 25:
+    print(f"... and {num_peaks - 20} more transitions.")
 
 
 # ---------------------------------------------------------------------------------------------------------------------#
@@ -145,8 +133,8 @@ if not target_indices:
 # Get all Larmor frequencies that belong to the target nucleus type (e.g., [1500 Hz, 600 Hz])
 target_v_centers = v[target_indices]
 
-# Filter raw signals (koncni_signali is [2, N] Hz, Intensity)
-raw_hz = koncni_signali[0]
+# Filter raw signals (spectra_peaks is [2, N] Hz, Intensity)
+raw_hz = spectra_peaks[0]
 is_target_signal = np.zeros(len(raw_hz), dtype=bool)
 
 # Check proximity to ALL potential center frequencies
@@ -154,7 +142,7 @@ for center_freq in target_v_centers:
     # Use OR (|) to combine results: a signal is included if it's close to EITHER center
     is_target_signal = is_target_signal | np.isclose(raw_hz, center_freq, atol=tolerance_Hz, rtol=0.0)
 
-filtered_raw_signals = koncni_signali[:, is_target_signal]
+filtered_raw_signals = spectra_peaks[:, is_target_signal]
 
 print(f"Plotting for {PLOT_NUCLEUS}. Found {filtered_raw_signals.shape[1]} transitions near centers: {target_v_centers}")
 
@@ -178,16 +166,16 @@ if filtered_raw_signals.shape[1] == 0:
 # COMBINES SIGNALS CLOSE TOGETHER (Group the filtered signals)
 # ---------------------------------------------------------------------------------------------------------------------#
 
-koncni_signali2_filt = filtered_raw_signals.T
-koncni_signali3_filt = koncni_signali2_filt[koncni_signali2_filt[:,0].argsort()].T  # Sort by frequency
+spectra_peaks2_filt = filtered_raw_signals.T
+spectra_peaks3_filt = spectra_peaks2_filt[spectra_peaks2_filt[:,0].argsort()].T  # Sort by frequency
 
-differences = np.abs(np.diff(koncni_signali3_filt[0]))
-group_separators = np.where(differences > treshold_hz)[0] + 1
-group_separators = np.concatenate([np.array([0]), group_separators, np.array([len(koncni_signali3_filt[0])])])
+differences = np.abs(np.diff(spectra_peaks3_filt[0]))
+group_separators = np.where(differences > threshold_hz)[0] + 1
+group_separators = np.concatenate([np.array([0]), group_separators, np.array([len(spectra_peaks3_filt[0])])])
 
 combined_arrays = []
 for i in range(len(group_separators) - 1):
-    sub_array = koncni_signali3_filt[:, group_separators[i]:group_separators[i+1]]
+    sub_array = spectra_peaks3_filt[:, group_separators[i]:group_separators[i+1]]
     
     # Calculate average frequency and sum intensity
     average_row = np.mean(sub_array[0], axis=0)
@@ -250,4 +238,4 @@ if PLOT_COMBINED_SIGNALS:
 else:
     data_to_plot = filtered_raw_signals.T
 
-functions.plot_nmr_spectrum(data_to_plot, treshold_hz, cutoff, PLOT_NUCLEUS, PLOT_COMBINED_SIGNALS, spectrometer_freqs_MHz)
+functions.plot_nmr_spectrum(data_to_plot, threshold_hz, cutoff, PLOT_NUCLEUS, PLOT_COMBINED_SIGNALS, spectrometer_freqs_MHz)
