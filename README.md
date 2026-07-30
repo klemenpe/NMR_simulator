@@ -1,4 +1,4 @@
-# ⚛️ NMR Spin Simulator (v1.2.0)
+# ⚛️ NMR Spin Simulator (v1.2.1)
 
 Welcome to the High-Resolution NMR Spin Simulator. This repository contains two completely independent implementations of a quantum-mechanical NMR spectrum solver, engineered for both educational clarity and extreme computational performance.
 

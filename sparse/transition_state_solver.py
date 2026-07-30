@@ -125,37 +125,39 @@ def calculate_transition_states_direct_blocks(spins, v, J_matrix, cutoff=0.001):
             # Fx_block[r, c] = <A_r | Fx | B_c>
             Fx_block = np.zeros((len(states_A), len(states_B)), dtype=np.complex128)
             
-            for r, state_A in enumerate(states_A):
-                for c, state_B in enumerate(states_B):
-                    # Fx is the sum of Ix_n = 0.5 * (S+_n + S-_n)
-                    # For state_A and state_B to be connected by Fx, 
-                    # exactly one spin must change by +/- 1.0, and others must be identical.
-                    diff_count = 0
-                    connected = True
-                    active_spin = -1
+            # Create an O(1) direct lookup map for Block A
+            state_A_to_r = {state: r for r, state in enumerate(states_A)}
+            
+            # Loop ONLY over Block B states (O(N_B * nspins)
+            for c, state_B in enumerate(states_B):
+                # Fx is the sum of Ix_n = 0.5 * (S+_n + S-_n)
+                # For state_A and state_B to be connected by Fx, 
+                # exactly one spin must change by +/- 1.0, and others must be identical.
+                for n in range(nspins):
+                    Sn = spins[n]
+                    m_B = state_B[n]
                     
-                    for n in range(nspins):
-                        diff = state_A[n] - state_B[n]
-                        if diff != 0:
-                            diff_count += 1
-                            if abs(diff) == 1.0:
-                                active_spin = n
-                            else:
-                                connected = False
-                                break
-                    
-                    if connected and diff_count == 1:
-                        # Calculate raising/lowering coefficient
-                        S_act = spins[active_spin]
-                        m_B = state_B[active_spin]
-                        m_A = state_A[active_spin]
+                    # 1. Test Raising Spin n (m_B -> m_B + 1.0)
+                    if m_B < Sn:
+                        target_state_A = list(state_B)
+                        target_state_A[n] = round(m_B + 1.0, 2)  # Rounding prevents floating point errors
+                        target_tuple = tuple(target_state_A)
                         
-                        if m_A > m_B: # Raising from B to A
-                            coeff = np.sqrt(S_act * (S_act + 1.0) - m_B * (m_B + 1.0))
-                        else: # Lowering from B to A
-                            coeff = np.sqrt(S_act * (S_act + 1.0) - m_B * (m_B - 1.0))
+                        if target_tuple in state_A_to_r:
+                            r = state_A_to_r[target_tuple]
+                            coeff = np.sqrt(Sn * (Sn + 1.0) - m_B * (m_B + 1.0))
+                            Fx_block[r, c] += 0.5 * coeff
+            
+                    # 2. Test Lowering Spin n (m_B -> m_B - 1.0)
+                    if m_B > -Sn:
+                        target_state_A = list(state_B)
+                        target_state_A[n] = round(m_B - 1.0, 2)
+                        target_tuple = tuple(target_state_A)
                         
-                        Fx_block[r, c] = 0.5 * coeff
+                        if target_tuple in state_A_to_r:
+                            r = state_A_to_r[target_tuple]
+                            coeff = np.sqrt(Sn * (Sn + 1.0) - m_B * (m_B - 1.0))
+                            Fx_block[r, c] += 0.5 * coeff
             
             V_A = block_eigenvectors[mz_A]
             V_B = block_eigenvectors[mz_B]
@@ -165,13 +167,12 @@ def calculate_transition_states_direct_blocks(spins, v, J_matrix, cutoff=0.001):
             E_A = block_eigenvalues[mz_A]
             E_B = block_eigenvalues[mz_B]
             
-            for r in range(len(E_A)):
-                for c in range(len(E_B)):
-                    intensity = intensities[r, c]
-                    if intensity >= cutoff:
-                        freq = abs(E_A[r] - E_B[c])
-                        peak_frequencies.append(freq)
-                        peak_intensities.append(intensity)
+            # Calculate all frequency differences simultaneously using 2D broadcasting
+            freq_matrix = np.abs(E_A[:, None] - E_B[None, :])
+            # Filter and append only transitions above cutoff using boolean indexing
+            mask = intensities >= cutoff
+            peak_frequencies.extend(freq_matrix[mask])
+            peak_intensities.extend(intensities[mask])
                         
     if len(peak_frequencies) > 0:
         spectra_peaks = np.vstack([peak_frequencies, peak_intensities])

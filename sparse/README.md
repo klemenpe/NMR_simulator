@@ -1,4 +1,4 @@
-# 🔵 High-Performance NMR Spin Simulator (Sparse Engine) — v1.2.0
+# 🔵 High-Performance NMR Spin Simulator (Sparse Engine) — v1.2.1
 
 This directory houses the high-performance, production-ready simulator engineered to solve massive spin systems containing **20+ active spins** with extreme speed and memory efficiency.
 
